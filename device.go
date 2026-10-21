@@ -13,6 +13,8 @@ import (
 type Device struct {
 	f    *os.File
 	base int64 // byte offset of the filesystem inside the device
+	size int64 // bytes from base to the end of the device, 0 if unknown
+	raw  bool  // no known file system: only a deep scan is possible
 }
 
 func OpenDevice(path string) (*Device, error) {
@@ -20,10 +22,16 @@ func OpenDevice(path string) (*Device, error) {
 	if err != nil {
 		return nil, err
 	}
-	d := &Device{f: f}
-	if err := d.findFilesystem(); err != nil {
+	d := &Device{f: f, size: deviceSize(f)}
+	if err := d.findFilesystem(); errors.Is(err, errNoFS) {
+		// Unknown, damaged or unformatted: read the whole device as raw data.
+		d.base, d.raw = 0, true
+	} else if err != nil {
 		f.Close()
 		return nil, err
+	}
+	if d.size > d.base {
+		d.size -= d.base
 	}
 	return d, nil
 }
@@ -60,6 +68,8 @@ func (d *Device) readAligned(p []byte, off, align int64) (int, error) {
 	return c, nil
 }
 
+var errNoFS = errors.New("no known file system found on this drive")
+
 // bootKind reports which filesystem a boot sector belongs to, or "".
 func bootKind(b []byte) string {
 	if len(b) < 512 {
@@ -67,6 +77,9 @@ func bootKind(b []byte) string {
 	}
 	if string(b[3:11]) == "EXFAT   " {
 		return "exFAT"
+	}
+	if string(b[3:11]) == "NTFS    " && b[510] == 0x55 && b[511] == 0xAA {
+		return "NTFS"
 	}
 	if b[510] != 0x55 || b[511] != 0xAA || (b[0] != 0xEB && b[0] != 0xE9) {
 		return ""
@@ -106,7 +119,7 @@ func (d *Device) findFilesystem() error {
 			}
 		}
 	}
-	return errors.New("no FAT32 or exFAT file system found on this drive")
+	return errNoFS
 }
 
 func (d *Device) findGPT() bool {

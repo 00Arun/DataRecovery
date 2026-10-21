@@ -57,7 +57,7 @@ func runCLI(src, out, only string, deep bool) error {
 	}
 	fmt.Printf("%s volume %q, cluster %d bytes, %d clusters\n", v.Kind, v.Label, v.ClusterSize, v.clusterCount)
 	v.Scan()
-	if deep {
+	if deep || v.Kind == "Raw" {
 		v.Carve()
 	}
 

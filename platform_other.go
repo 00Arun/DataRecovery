@@ -24,3 +24,8 @@ func defaultOut() string {
 }
 
 const permissionHelp = "Permission denied. Run DataRecovery as root (for example with sudo)."
+
+func deviceSize(f *os.File) int64 {
+	n, _ := f.Seek(0, 2)
+	return n
+}

@@ -43,8 +43,14 @@ Settings > Apps > DataRecovery > Uninstall.
 
 Thaha hunuparne kura
 --------------------
-- FAT32 ra exFAT card/drive chalchha (SD card, pen drive, camera card).
-  NTFS chaldaina.
+- SD card, pen drive, external hard disk ra computer ko afnai drive sabai
+  list ma aaphai dekhinchhan. Naya drive jodda aaphai dekhinchha.
+- Quick scan (naam ra folder sahit): FAT32, exFAT ra NTFS drive ma chalchha.
+- Deep scan: jun sukai drive ma chalchha (APFS, HFS+, format nabhaeko/bigreko
+  drive pani) - photos/videos lai content bata khojchha.
+- Laptop ko afnai SSD ma TRIM le delete bhayeka files turuntai mettachha, ra
+  Mac ko afnai drive encrypted hunchha - tesaile yinbata dherai kam files
+  aaunchhan. Card, pen drive ra hard disk ma yo samasya hudaina.
 - FAT32 ma chhoto naam bhaeko folder ko pahilo akshar "_" dekhina sakchha
   (jastai "_MAGES"); yo FAT32 le nai mettachha.
 - Card ma naya files lekhiyeko thau ma purana files overwrite hunchhan.

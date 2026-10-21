@@ -60,6 +60,11 @@ h2{font-size:22px;margin:0 0 4px}
 .b-blue{background:var(--accent-soft);color:var(--accent)}
 .b-gray{background:var(--line);color:var(--muted)}
 .b-red{background:var(--bad-soft);color:var(--bad)}
+.b-amber{background:var(--warn-soft);color:var(--warn)}
+.note{background:var(--accent-soft);border-radius:10px;padding:12px 14px;margin-top:16px;font-size:14px}
+.mode:disabled{opacity:.5;cursor:not-allowed}
+.toast{position:fixed;top:78px;right:20px;z-index:60;background:var(--text);color:var(--bg);padding:12px 16px;border-radius:12px;box-shadow:var(--shadow);font-size:14px;font-weight:600;opacity:0;transform:translateY(-8px);transition:opacity .2s,transform .2s;pointer-events:none;max-width:360px}
+.toast.on{opacity:1;transform:none}
 .empty{padding:28px;text-align:center;color:var(--muted);border:2px dashed var(--line);border-radius:12px}
 
 .modes{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:22px}
@@ -214,6 +219,7 @@ footer{position:fixed;left:0;right:0;bottom:0;background:var(--panel);border-top
       <button class="mode" data-mode="deep"><span class="dot"></span><span><b data-i="deep"></b><small data-i="deepSub"></small></span></button>
     </div>
 
+    <div class="note hidden" id="driveNote"></div>
     <div class="tip"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4M12 17h.01"/></svg><span data-i="tip"></span></div>
 
     <details><summary data-i="advanced"></summary>
@@ -237,6 +243,7 @@ footer{position:fixed;left:0;right:0;bottom:0;background:var(--panel);border-top
 
   <!-- Step 3: choose files -->
   <section id="vResults" class="hidden">
+    <div class="note hidden" id="rawNote" style="margin:0 0 16px" data-i="rawNote"></div>
     <div class="stats" id="stats"></div>
     <div class="layout">
       <aside class="side"><h3 data-i="folders"></h3><div id="tree"></div></aside>
@@ -283,6 +290,7 @@ footer{position:fixed;left:0;right:0;bottom:0;background:var(--panel);border-top
   <button class="btn primary big" id="recoverBtn"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg><span data-i="recover"></span></button>
 </div></footer>
 
+<div class="toast" id="toast"></div>
 <div class="modal hidden" id="modal">
   <div class="mbox">
     <div class="mimg" id="mImg"></div>
@@ -303,9 +311,12 @@ const L = {
     pickTitle: 'Where were the files deleted from?',
     pickSub: 'Insert the SD card or USB drive, then choose it below.',
     refresh: '↻ Refresh drive list',
-    noDrives: 'No drives found. Insert the card, then click "Refresh drive list".',
-    removable: 'SD card / USB', fixed: 'Hard disk', windows: 'Windows drive', notSupported: 'Not supported',
-    notSupportedWhy: 'Only FAT32 and exFAT drives (SD cards, USB drives) are supported.',
+    noDrives: 'Waiting for a drive… Plug in a card or USB drive and it will appear here.',
+    removable: 'SD card / USB', fixed: 'Built-in / hard disk', thisComputer: 'This computer', deepOnly: 'Deep scan only',
+    quickUnavailable: 'Quick scan reads file names and works on FAT32, exFAT and NTFS drives. This drive uses another file system, so Deep scan will look for photos and videos by their content.',
+    internalNote: 'This is a built-in drive. Most laptop SSDs wipe deleted files right away (TRIM), and Mac built-in drives are encrypted, so recovery from them often finds little. Files deleted from SD cards, USB sticks and hard disks usually come back.',
+    newDrive: d => `New drive detected: ${d}`, driveRemoved: d => `Drive removed: ${d}`,
+    rawNote: 'Names could not be read on this drive, so these photos and videos were found by their content. Some may be files that were never deleted.',
     noName: 'No name',
     quick: 'Quick scan (recommended)',
     quickSub: 'Finds deleted files with their original names and folders. Usually takes under a minute.',
@@ -316,7 +327,9 @@ const L = {
     manualPh: 'e.g. E:  or  D:\\card.img',
     startScan: 'Start scan',
     scanning: 'Searching for deleted files…', recovering: 'Saving your files…',
-    readingFolders: 'Reading folders', foundSoFar: n => `${n} deleted files found so far`,
+    readingFolders: 'Reading folders', readingTable: 'Reading the file table',
+    deepSearching: 'Deep scan: searching the whole drive', deepRecovering: 'Deep scan: rebuilding photos and videos',
+    foundSoFar: n => `${n} deleted files found so far`,
     eta: s => `About ${s} left`, stop: 'Stop',
     photos: 'Photos', videos: 'Videos', others: 'Other files', all: 'All files',
     folders: 'Folders', allFolders: 'All folders', foundNoName: 'Found without names', lostFolders: 'Names found, folder unknown',
@@ -343,9 +356,12 @@ const L = {
     pickTitle: 'फाइलहरू कुन ड्राइभबाट मेटिएका थिए?',
     pickSub: 'SD कार्ड वा पेन ड्राइभ लगाउनुहोस्, अनि तल छान्नुहोस्।',
     refresh: '↻ ड्राइभ सूची फेरि हेर्नुहोस्',
-    noDrives: 'कुनै ड्राइभ भेटिएन। कार्ड लगाएर "ड्राइभ सूची फेरि हेर्नुहोस्" थिच्नुहोस्।',
-    removable: 'SD कार्ड / पेन ड्राइभ', fixed: 'हार्ड डिस्क', windows: 'Windows ड्राइभ', notSupported: 'चल्दैन',
-    notSupportedWhy: 'FAT32 र exFAT ड्राइभ (SD कार्ड, पेन ड्राइभ) मात्र चल्छन्।',
+    noDrives: 'ड्राइभ पर्खँदै… कार्ड वा पेन ड्राइभ लगाउनुहोस्, यहाँ आफैँ देखिन्छ।',
+    removable: 'SD कार्ड / पेन ड्राइभ', fixed: 'भित्री / हार्ड डिस्क', thisComputer: 'यो कम्प्युटर', deepOnly: 'गहिरो स्क्यान मात्र',
+    quickUnavailable: 'छिटो स्क्यानले फाइलको नाम पढ्छ र FAT32, exFAT र NTFS ड्राइभमा चल्छ। यो ड्राइभ अर्कै प्रकारको छ, त्यसैले गहिरो स्क्यानले फोटो र भिडियोलाई तिनको सामग्रीबाट खोज्नेछ।',
+    internalNote: 'यो कम्प्युटरभित्रको ड्राइभ हो। धेरैजसो ल्यापटपका SSD ले मेटिएका फाइल तुरुन्तै पूरै मेटाइदिन्छन् (TRIM), र Mac का भित्री ड्राइभ इन्क्रिप्ट गरिएका हुन्छन्, त्यसैले यिनबाट थोरै मात्र फाइल भेटिन सक्छन्। SD कार्ड, पेन ड्राइभ र हार्ड डिस्कबाट मेटिएका फाइल प्रायः फिर्ता आउँछन्।',
+    newDrive: d => `नयाँ ड्राइभ भेटियो: ${d}`, driveRemoved: d => `ड्राइभ निकालियो: ${d}`,
+    rawNote: 'यो ड्राइभमा फाइलका नाम पढ्न सकिएन, त्यसैले यी फोटो र भिडियो तिनको सामग्रीबाट भेटिएका हुन्। कतिपय कहिल्यै नमेटिएका फाइल पनि हुन सक्छन्।',
     noName: 'नाम छैन',
     quick: 'छिटो स्क्यान (सिफारिस)',
     quickSub: 'मेटिएका फाइलहरू तिनको आफ्नै नाम र फोल्डरसहित भेट्छ। प्रायः एक मिनेटभित्र सकिन्छ।',
@@ -356,7 +372,9 @@ const L = {
     manualPh: 'जस्तै E:  वा  D:\\card.img',
     startScan: 'स्क्यान सुरु गर्नुहोस्',
     scanning: 'मेटिएका फाइलहरू खोज्दै…', recovering: 'तपाईंका फाइलहरू सेभ गर्दै…',
-    readingFolders: 'फोल्डरहरू पढ्दै', foundSoFar: n => `अहिलेसम्म ${n} मेटिएका फाइल भेटिए`,
+    readingFolders: 'फोल्डरहरू पढ्दै', readingTable: 'फाइल तालिका पढ्दै',
+    deepSearching: 'गहिरो स्क्यान: पूरै ड्राइभ खोज्दै', deepRecovering: 'गहिरो स्क्यान: फोटो र भिडियो जोड्दै',
+    foundSoFar: n => `अहिलेसम्म ${n} मेटिएका फाइल भेटिए`,
     eta: s => `करिब ${s} बाँकी`, stop: 'रोक्नुहोस्',
     photos: 'फोटो', videos: 'भिडियो', others: 'अरू फाइल', all: 'सबै फाइल',
     folders: 'फोल्डरहरू', allFolders: 'सबै फोल्डर', foundNoName: 'नाम बिना भेटिएका', lostFolders: 'नाम भेटियो, फोल्डर थाहा छैन',
@@ -434,34 +452,74 @@ function setStep(n) {
 function alertMsg(m) { $('alertMsg').textContent = m || ''; show('alert', !!m); if (m) window.scrollTo({top: 0, behavior: 'smooth'}); }
 
 /* ---------- step 1 ---------- */
-const supported = d => !d.fs || /^(FAT|FAT12|FAT16|FAT32|exFAT|RAW)$/i.test(d.fs);
+// Quick scan reads file names, which needs a file system DataRecovery
+// understands; any other drive can still be searched by a deep scan.
+const quickOK = d => !d || !d.fs || /^(FAT|FAT12|FAT16|FAT32|exFAT|NTFS|RAW)$/i.test(d.fs);
+const current = () => drives.find(d => d.path === source);
+let userPicked = false, knownDrives = null, toastTimer = null;
+
 async function loadDrives() {
-  try { drives = await api('/api/drives') || []; } catch (e) { drives = []; alertMsg(e.message); }
-  drives.sort((a, b) => (b.removable - a.removable) || a.letter.localeCompare(b.letter));
-  if (!source) { const d = drives.find(d => d.removable && supported(d)); if (d) source = d.path; }
+  let list;
+  try { list = await api('/api/drives') || []; } catch (e) { return; }
+  list.sort((a, b) => (b.removable - a.removable) || a.letter.localeCompare(b.letter));
+  const before = knownDrives, paths = new Set(list.map(d => d.path));
+  if (before) {
+    const added = list.filter(d => !before.has(d.path)), removed = [...before.keys()].filter(p => !paths.has(p));
+    if (added.length) {
+      const d = added[0];
+      toast(t('newDrive', `${d.letter} ${d.label || t('noName')}`));
+      if (!userPicked || !paths.has(source)) { source = d.path; userPicked = false; }
+    } else if (removed.length) {
+      toast(t('driveRemoved', before.get(removed[0])));
+    }
+  }
+  knownDrives = new Map(list.map(d => [d.path, `${d.letter} ${d.label || t('noName')}`]));
+  drives = list;
+  if (source && !paths.has(source)) source = '';
+  if (!source) { const d = drives.find(d => d.removable) || null; if (d) source = d.path; }
   renderDrives();
 }
+setInterval(() => { if (!$('vDrive').classList.contains('hidden')) loadDrives(); }, 2000);
+
+function toast(msg) {
+  const el = $('toast');
+  el.textContent = msg; el.classList.add('on');
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => el.classList.remove('on'), 5000);
+}
+
 function renderDrives() {
   const el = $('drives');
   if (!drives.length) { el.innerHTML = `<div class="empty">${esc(t('noDrives'))}</div>`; updateScanBtn(); return; }
-  el.innerHTML = drives.map(d => {
-    const ok = supported(d);
-    return `<button class="drive ${source === d.path ? 'on' : ''}" data-p="${esc(d.path)}" ${ok ? '' : 'disabled'} title="${ok ? '' : esc(t('notSupportedWhy'))}">
+  el.innerHTML = drives.map(d => `<button class="drive ${source === d.path ? 'on' : ''}" data-p="${esc(d.path)}">
       <span class="ic">${d.removable ? IC.sd : IC.disk}</span>
       <span><b>${esc(d.letter)}</b> ${esc(d.label || t('noName'))}
         <small>${esc(d.fs || '?')} · ${d.size ? fmt(d.size) : '?'}</small>
-        <span class="badge ${d.removable ? 'b-blue' : 'b-gray'}">${esc(d.removable ? t('removable') : t('fixed'))}</span>${d.system ? `<span class="badge b-gray">${esc(t('windows'))}</span>` : ''}${ok ? '' : `<span class="badge b-red">${esc(t('notSupported'))}</span>`}
-      </span><span class="chk">${IC.check}</span></button>`;
-  }).join('');
-  el.querySelectorAll('.drive').forEach(b => b.onclick = () => { source = b.dataset.p; $('manual').value = ''; renderDrives(); });
+        <span class="badge ${d.removable ? 'b-blue' : 'b-gray'}">${esc(d.removable ? t('removable') : t('fixed'))}</span>${d.system ? `<span class="badge b-gray">${esc(t('thisComputer'))}</span>` : ''}${quickOK(d) ? '' : `<span class="badge b-amber">${esc(t('deepOnly'))}</span>`}
+      </span><span class="chk">${IC.check}</span></button>`).join('');
+  el.querySelectorAll('.drive').forEach(b => b.onclick = () => { source = b.dataset.p; userPicked = true; $('manual').value = ''; renderDrives(); });
   updateScanBtn();
 }
-function updateScanBtn() { $('scanBtn').disabled = !(source || $('manual').value.trim()); }
+
+// The scan choices and notes follow the chosen drive.
+function updateScanBtn() {
+  $('scanBtn').disabled = !(source || $('manual').value.trim());
+  const d = $('manual').value.trim() ? null : current();
+  const quick = document.querySelector('[data-mode="quick"]');
+  quick.disabled = !quickOK(d);
+  if (!quickOK(d) && mode === 'quick') setMode('deep');
+  const notes = [];
+  if (!quickOK(d)) notes.push(t('quickUnavailable'));
+  if (d && !d.removable) notes.push(t('internalNote'));
+  $('driveNote').innerHTML = notes.map(esc).join('<br><br>');
+  show('driveNote', notes.length > 0);
+}
+function setMode(m) {
+  mode = m;
+  document.querySelectorAll('.mode').forEach(x => x.classList.toggle('on', x.dataset.mode === m));
+}
 $('manual').oninput = () => { if ($('manual').value.trim()) { source = ''; renderDrives(); } updateScanBtn(); };
 $('refresh').onclick = loadDrives;
-document.querySelectorAll('.mode').forEach(b => b.onclick = () => {
-  mode = b.dataset.mode; document.querySelectorAll('.mode').forEach(x => x.classList.toggle('on', x === b));
-});
+document.querySelectorAll('.mode').forEach(b => b.onclick = () => { if (!b.disabled) setMode(b.dataset.mode); });
 $('scanBtn').onclick = async () => {
   let src = $('manual').value.trim() || source;
   if (/^[a-z]:?\\?$/i.test(src)) src = '\\\\.\\' + src[0].toUpperCase() + ':';
@@ -490,7 +548,9 @@ async function poll() {
     $('pBar').classList.toggle('ind', !s.total);
     $('pBar').firstElementChild.style.width = (pct * 100).toFixed(1) + '%';
     $('pPct').textContent = s.total ? Math.floor(pct * 100) + '%' : '';
-    let msg = s.msg === 'Reading folders' ? t('readingFolders') : s.msg;
+    const known = {'Reading folders': 'readingFolders', 'Reading the file table': 'readingTable',
+      'Deep scan: searching free space': 'deepSearching', 'Deep scan: recovering photos and videos without names': 'deepRecovering'};
+    let msg = known[s.msg] ? t(known[s.msg]) : s.msg;
     if (s.phase === 'recovering') msg = msg.replace(/^Recovering /, '');
     $('pMsg').textContent = msg;
     const now = Date.now();
@@ -524,6 +584,7 @@ async function loadEntries(s, quiet) {
   if (quiet) return;
   if (!entries.length) { alertMsg(t('nothingFound')); toDrive(); return; }
   show('vDrive', false); show('vDone', false); show('vResults', true); show('footer', true); setStep(3);
+  show('rawNote', s.fs === 'Raw');
   renderResults();
 }
 

@@ -5,7 +5,7 @@
 <h1 align="center">DataRecovery</h1>
 
 <p align="center">
-  Get back deleted photos, videos and files from SD cards, USB drives and camera cards,<br>
+  Get back deleted photos, videos and files from SD cards, USB drives, hard disks and SSDs,<br>
   with their <b>original names, folders and dates</b>.
 </p>
 
@@ -27,7 +27,8 @@
 
 - **Keeps names and folders.** Deleted files come back as `DCIM/Camera/IMG_20260918_141122.jpg`, not `f12345678.jpg`, with their original dates.
 - **See before you recover.** Deleted photos show as thumbnails; click one for a full preview.
-- **Deep scan.** Finds photos and videos even after their names are gone, for example after formatting (JPG, PNG, HEIC, MP4, MOV, 3GP).
+- **Any drive.** SD cards, USB sticks, external hard disks and the computer's own drives. New drives are detected as soon as they are plugged in.
+- **Deep scan.** Finds photos and videos even after their names are gone, for example after formatting, and on drives with any file system (JPG, PNG, HEIC, MP4, MOV, 3GP).
 - **Safe.** It only reads the card. It never writes to it, and it will not save recovered files onto the card you are recovering from.
 - **Simple.** Four steps: choose drive, scan, choose files, save. In English or Nepali.
 
@@ -59,7 +60,7 @@ Step-by-step guides in Nepali: [Windows](README.txt) · [macOS](README-mac.txt)
   <img src="docs/screenshots/1-choose-drive.png" width="760" alt="Step 1: choose the drive">
 </p>
 
-1. **Insert the card** and do not copy anything onto it. New files can overwrite the deleted ones.
+1. **Insert the card or drive** and do not copy anything onto it. New files can overwrite the deleted ones. It shows up in the list by itself.
 2. **Choose the drive** and a scan type:
    - **Quick scan (recommended):** finds deleted files with their names and folders, usually in under a minute.
    - **Deep scan:** also finds photos and videos whose names are gone. On a 128 GB card this can take 30 to 60 minutes.
@@ -84,17 +85,20 @@ Recovered files are saved as:
 
 ## Supported drives
 
-| | |
-|---|---|
-| File systems | FAT32, FAT16, exFAT (almost all SD cards, USB drives and camera cards) |
-| Not supported | NTFS, APFS, HFS+ |
-| Deep scan finds | JPG, PNG, HEIC, MP4, MOV, 3GP |
+| Drive | Quick scan (names and folders) | Deep scan (by content) |
+|---|---|---|
+| FAT32 / FAT16 / exFAT: SD cards, USB sticks, camera cards | Yes | Yes |
+| NTFS: Windows drives, external hard disks | Yes | Yes |
+| APFS, HFS+, unformatted or damaged drives | No | Yes |
+
+Deep scan finds JPG, PNG, HEIC, MP4, MOV and 3GP files.
 
 Good to know:
 
 - Recover as soon as possible. Every new file written to the card can overwrite deleted ones.
 - On FAT32, the first letter of a deleted folder with a short name can be lost (for example `IMAGES` comes back as `_MAGES`). Long names are restored in full.
 - After a format, names are gone. Use **Deep scan**.
+- Built-in SSDs: most laptop SSDs wipe deleted files right away (TRIM), and Mac built-in drives are encrypted, so recovery from them often finds little. DataRecovery marks wiped files as *Overwritten* instead of saving empty files. Cards, USB sticks and hard disks are not affected.
 
 ## Build from source
 
@@ -123,7 +127,7 @@ DATARECOVERY_TEST_IMAGE=card.img go test ./...
 
 | Path | What it is |
 |---|---|
-| `device.go`, `volume.go`, `exfat.go`, `fat.go` | Read-only disk access and FAT/exFAT parsing |
+| `device.go`, `volume.go`, `exfat.go`, `fat.go`, `ntfs.go` | Read-only disk access and FAT, exFAT and NTFS parsing |
 | `carve.go` | Deep scan: lost folder pieces and content-based recovery |
 | `recover.go` | Writing recovered files with their folder structure and dates |
 | `app.go`, `ui.html` | Interface state and the interface itself |

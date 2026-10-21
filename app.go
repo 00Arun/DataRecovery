@@ -179,7 +179,7 @@ func (a *app) scan(r *http.Request) (any, error) {
 		a.dev, a.vol = dev, v
 		a.mu.Unlock()
 		v.Scan()
-		if req.Deep {
+		if req.Deep || v.Kind == "Raw" { // without names, a deep scan is the only way
 			v.Carve()
 		}
 		a.mu.Lock()

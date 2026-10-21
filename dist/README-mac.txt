@@ -39,7 +39,12 @@ Applications bata DataRecovery lai Trash ma halnus.
 
 Thaha hunuparne kura
 --------------------
-- FAT32 ra exFAT card/drive chalchha (SD card, pen drive, camera card).
+- SD card, pen drive, external hard disk ra Mac ko afnai drive sabai list ma
+  aaphai dekhinchhan. Naya drive jodda aaphai dekhinchha.
+- Quick scan (naam ra folder sahit): FAT32, exFAT ra NTFS drive ma chalchha.
+  APFS/HFS+ drive ma Deep scan matra chalchha.
+- Mac ko afnai drive encrypted hunchha ra SSD le TRIM gardachha, tesaile
+  tyasbata dherai kam files aaunchhan. Card, pen drive, hard disk ma thik.
 - Deep scan le naam haraisakeka photos/videos pani khojchha, tara dherai
   samaya lagchha (128 GB card ma 30 minute dekhi 1 ghanta).
 - Card ma naya files lekhiyeko thau ma purana files overwrite hunchhan.

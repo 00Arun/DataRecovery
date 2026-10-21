@@ -22,7 +22,8 @@ type Entry struct {
 	Status  string    `json:"status"` // good, partial, overwritten
 	Kind    string    `json:"kind"`   // photo, video, other
 	Carved  bool      `json:"carved"`
-	runs    []Run
+	runs    []Run     // clusters; a run with Start 0 is a sparse hole
+	inline  []byte    // small NTFS files stored inside their MFT record
 }
 
 type Volume struct {
@@ -40,6 +41,9 @@ type Volume struct {
 	known        []uint64 // clusters already claimed by a found entry
 	visited      map[uint32]bool
 	unfinished   []*unfinishedDir
+	mftRecSize   int64 // NTFS: bytes per file record
+	mftRuns      []Run // NTFS: where the file table is
+	mftSize      int64
 	Entries      []*Entry
 
 	Stop     atomic.Bool
@@ -62,8 +66,10 @@ func OpenVolume(dev *Device) (*Volume, error) {
 		err = v.initExFAT(b)
 	case "FAT":
 		err = v.initFAT(b)
+	case "NTFS":
+		err = v.initNTFS(b)
 	default:
-		err = errors.New("unsupported file system")
+		err = v.initRaw()
 	}
 	if err != nil {
 		return nil, err
@@ -74,9 +80,14 @@ func OpenVolume(dev *Device) (*Volume, error) {
 
 func (v *Volume) Scan() {
 	v.Progress("Reading folders", 0, 0)
-	if v.Kind == "exFAT" {
+	switch v.Kind {
+	case "exFAT":
 		v.walkExFAT(v.rootData, "", false, 0)
-	} else {
+	case "NTFS":
+		v.walkNTFS()
+	case "Raw":
+		// Nothing to read: names are only known to supported file systems.
+	default:
 		v.walkFAT(v.rootData, "", false, 0)
 	}
 }
@@ -196,7 +207,7 @@ func (v *Volume) readRuns(runs []Run, limit int64) []byte {
 func (v *Volume) status(runs []Run) string {
 	var used, total int
 	for _, r := range runs {
-		for c := r.Start; c < r.Start+r.Count; c++ {
+		for c := r.Start; c < r.Start+r.Count && r.Start != 0; c++ {
 			total++
 			if v.allocated(c) {
 				used++
@@ -229,11 +240,50 @@ func (v *Volume) addEntry(p string, size int64, mtime time.Time, runs []Run) {
 	if size <= 0 || size > v.end() || len(runs) == 0 || systemJunk(p) {
 		return
 	}
-	v.Entries = append(v.Entries, &Entry{
+	e := &Entry{
 		ID: len(v.Entries), Path: p, Size: size, ModTime: mtime,
 		Status: v.status(runs), Kind: kindOf(p), runs: runs,
-	})
+	}
+	// SSDs erase the space of deleted files (TRIM), so the clusters can be
+	// free yet hold only zeros. Check photos and videos, which people most
+	// want back, so they are not shown as intact when nothing is left.
+	if e.Status != "overwritten" && e.Kind != "other" && allZero(v.Head(e, 4096)) {
+		e.Status = "overwritten"
+	}
+	v.Entries = append(v.Entries, e)
 	v.markKnown(runs)
+}
+
+// addInline records a small file whose bytes are stored in file system metadata.
+func (v *Volume) addInline(p string, data []byte, mtime time.Time) {
+	if len(data) == 0 || systemJunk(p) {
+		return
+	}
+	v.Entries = append(v.Entries, &Entry{
+		ID: len(v.Entries), Path: p, Size: int64(len(data)), ModTime: mtime,
+		Status: "good", Kind: kindOf(p), inline: data,
+	})
+}
+
+func allZero(b []byte) bool {
+	for _, c := range b {
+		if c != 0 {
+			return false
+		}
+	}
+	return true
+}
+
+// initRaw treats a drive with no recognised file system as a plain run of
+// 4 KiB blocks, so the deep scan can still search it.
+func (v *Volume) initRaw() error {
+	if v.dev.size <= 0 {
+		return errors.New("could not read the size of this drive")
+	}
+	v.Kind = "Raw"
+	v.ClusterSize = 4096
+	v.clusterCount = uint32(v.dev.size / v.ClusterSize)
+	return nil
 }
 
 // Extract writes the entry's bytes to w.
@@ -247,12 +297,24 @@ func (v *Volume) Head(e *Entry, n int64) []byte {
 }
 
 func (v *Volume) extract(e *Entry, w io.Writer, left int64) error {
+	if e.inline != nil {
+		_, err := w.Write(e.inline[:min(left, int64(len(e.inline)))])
+		return err
+	}
 	for _, r := range e.runs {
 		off := v.clusterOffset(r.Start)
 		n := int64(r.Count) * v.ClusterSize
 		for n > 0 && left > 0 {
 			chunk := min(n, left, 4<<20)
 			b := make([]byte, chunk)
+			if r.Start == 0 { // sparse hole: zeros
+				if _, err := w.Write(b); err != nil {
+					return err
+				}
+				n -= chunk
+				left -= chunk
+				continue
+			}
 			got, err := v.dev.ReadAt(b, off)
 			if _, werr := w.Write(b[:got]); werr != nil {
 				return werr
