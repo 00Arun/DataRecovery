@@ -1,0 +1,6 @@
+# Build output (scripts/build-installers.sh writes the installers to dist/)
+build/bin/
+frontend/
+
+# macOS
+.DS_Store

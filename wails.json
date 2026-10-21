@@ -1,0 +1,17 @@
+{
+  "$schema": "https://wails.io/schemas/config.v2.json",
+  "name": "DataRecovery",
+  "outputfilename": "DataRecovery",
+  "frontend:install": "",
+  "frontend:build": "",
+  "author": {
+    "name": "Arun Pandey"
+  },
+  "info": {
+    "companyName": "Arun AI Studio",
+    "productName": "DataRecovery",
+    "productVersion": "1.0.0",
+    "copyright": "© 2026 Arun Pandey. All rights reserved.",
+    "comments": "Built by Arun Pandey, Arun AI Studio - https://arun-pandey.com.np/"
+  }
+}
